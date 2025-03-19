@@ -30,8 +30,12 @@ jobs:
       - name: Terraform Init (no remote backend)
         run: terraform init -backend=false
 
+      - name: Terraform Plan (Genera State Local para RG, Storage Account y Container)
+        run: terraform plan -target=azurerm_resource_group.rg -target=azurerm_storage_account.terraform -target=azurerm_storage_container.terraform -out=tfplan
+      
+
       - name: Terraform Apply (Create Resource Group, Storage Account, Storage Container)
-        run: terraform apply -target=azurerm_resource_group.rg -target=azurerm_storage_account.terraform -target=azurerm_storage_container.terraform -auto-approve
+        run: terraform apply tfplan --auto-approve
       
 
       - name: Get Storage Account Key

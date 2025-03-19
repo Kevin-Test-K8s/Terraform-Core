@@ -1,0 +1,51 @@
+name: Terraform Deployment
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Log in to Azure
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS_TERRAFORM }}
+
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.5.7
+
+      - name: Terraform Init (no remote backend)
+        run: terraform init -backend=false
+
+      - name: Terraform Apply (Create Resource Group, Storage Account, Storage Container)
+        run: terraform apply -target=azurerm_resource_group.rg -target=azurerm_storage_account.terraform -target=azurerm_storage_container.terraform -auto-approve
+      
+
+      - name: Get Storage Account Key
+        run: |
+          echo "STORAGE_KEY=$(az storage account keys list --resource-group k8s-terraform --account-name terraformstateacc --query '[0].value' -o tsv)" >> $GITHUB_ENV
+
+      - name: Set up remote Backend
+        run: |
+          terraform init \
+            -backend-config="resource_group_name=k8s-terraform" \
+            -backend-config="storage_account_name=terraformstateacc" \
+            -backend-config="container_name=terraform-state" \
+            -backend-config="key=terraform.tfstate" \
+            -backend-config="access_key=${{ env.STORAGE_KEY }}"
+
+      - name: Terraform Apply (Create AKS Resources)
+        run: terraform apply -auto-approve

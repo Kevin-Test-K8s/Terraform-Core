@@ -1,14 +1,15 @@
 variable "resource_group_name" {
-  type    = string
-  default = "k8s-terraform"
+  type = string
 }
 
 variable "cluster_name" {
-  type    = string
-  default = "k8s-terraform-cluster"
+  type = string
 }
 
 variable "location" {
-  type    = string
-  default = "West Europe"
+  type = string
+}
+
+variable "subscription_id" {
+  type = string
 }

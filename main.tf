@@ -1,16 +1,16 @@
 provider "azurerm" {
   features {}
 
-  subscription_id = "92c6c6b9-38e4-45d2-b008-67d96607f54b"
+  subscription_id = var.subscription_id
 }
 
 resource "azurerm_resource_group" "rg" {
-  name     = "k8s-terraform"
-  location = "West Europe"
+  name     = var.resource_group_name
+  location = var.location
 }
 
 resource "azurerm_kubernetes_cluster" "aks" {
-  name                = "k8s-terraform-cluster"
+  name                = var.cluster_name
   location           = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
   dns_prefix         = "k8s-terraform"

@@ -28,7 +28,7 @@ jobs:
           terraform_version: 1.5.7
 
       - name: Terraform Init (no remote backend)
-        run: terraform init -backend=false
+        run: terraform init
 
       - name: Terraform Plan (Genera State Local para RG, Storage Account y Container)
         run: terraform plan -target=azurerm_resource_group.rg -target=azurerm_storage_account.terraform -target=azurerm_storage_container.terraform -out=tfplan

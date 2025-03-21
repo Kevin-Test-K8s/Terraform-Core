@@ -22,41 +22,46 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS_TERRAFORM }}
 
-      - name: Export Azure credentials to env vars
+      - name: Export Azure credentials to environment variables
         run: |
-            echo '${{ secrets.AZURE_CREDENTIALS_TERRAFORM }}' > azure-creds.json
-            echo "ARM_CLIENT_ID=$(jq -r .clientId azure-creds.json)" >> $GITHUB_ENV
-            echo "ARM_CLIENT_SECRET=$(jq -r .clientSecret azure-creds.json)" >> $GITHUB_ENV
-            echo "ARM_SUBSCRIPTION_ID=$(jq -r .subscriptionId azure-creds.json)" >> $GITHUB_ENV
-            echo "ARM_TENANT_ID=$(jq -r .tenantId azure-creds.json)" >> $GITHUB_ENV
+          echo '${{ secrets.AZURE_CREDENTIALS_TERRAFORM }}' > azure-creds.json
+          echo "ARM_CLIENT_ID=$(jq -r .clientId azure-creds.json)" >> $GITHUB_ENV
+          echo "ARM_CLIENT_SECRET=$(jq -r .clientSecret azure-creds.json)" >> $GITHUB_ENV
+          echo "ARM_SUBSCRIPTION_ID=$(jq -r .subscriptionId azure-creds.json)" >> $GITHUB_ENV
+          echo "ARM_TENANT_ID=$(jq -r .tenantId azure-creds.json)" >> $GITHUB_ENV
 
       - name: Install Terraform
         uses: hashicorp/setup-terraform@v2
         with:
           terraform_version: 1.5.7
 
-      - name: Terraform Init (no remote backend)
-        run: terraform init -backend=false
-      
+      - name: Bootstrap backend resources in Azure (if not exist)
+        run: |
+          az group show --name k8s-terraform || az group create --name k8s-terraform --location "westeurope"
 
-      - name: Terraform Apply (Create only Resource Group)
-        run: terraform apply -target=azurerm_resource_group.rg -auto-approve
+          az storage account show --name terraformstateacc --resource-group k8s-terraform || \
+          az storage account create --name terraformstateacc \
+            --resource-group k8s-terraform \
+            --location "westeurope" \
+            --sku Standard_LRS \
+            --encryption-services blob
 
-      - name: Terraform Apply (Create Storage Account, Container)
-        run: terraform apply -target=azurerm_storage_account.terraform -target=azurerm_storage_container.terraform -auto-approve
+          az storage container show --name terraform-state --account-name terraformstateacc || \
+          az storage container create --name terraform-state \
+            --account-name terraformstateacc
 
       - name: Get Storage Account Key
         run: |
           echo "STORAGE_KEY=$(az storage account keys list --resource-group k8s-terraform --account-name terraformstateacc --query '[0].value' -o tsv)" >> $GITHUB_ENV
 
-      - name: Set up remote Backend
+      - name: Terraform Init with remote backend
         run: |
-          terraform init -migrate-state \
+          terraform init \
             -backend-config="resource_group_name=k8s-terraform" \
             -backend-config="storage_account_name=terraformstateacc" \
             -backend-config="container_name=terraform-state" \
             -backend-config="key=terraform.tfstate" \
             -backend-config="access_key=${{ env.STORAGE_KEY }}"
 
-      - name: Terraform Apply (Create AKS Resources)
+      - name: Terraform Apply (All resources)
         run: terraform apply -auto-approve

@@ -37,14 +37,13 @@ jobs:
 
       - name: Terraform Init (no remote backend)
         run: terraform init
-
-      - name: Terraform Plan (Genera State Local para RG, Storage Account y Container)
-        run: terraform plan -target=azurerm_resource_group.rg -target=azurerm_storage_account.terraform -target=azurerm_storage_container.terraform -out=tfplan
       
 
-      - name: Terraform Apply (Create Resource Group, Storage Account, Storage Container)
-        run: terraform apply tfplan --auto-approve
-      
+      - name: Terraform Apply (Create only Resource Group)
+        run: terraform apply -target=azurerm_resource_group.rg -auto-approve
+
+      - name: Terraform Apply (Create Storage Account, Container)
+        run: terraform apply -target=azurerm_storage_account.terraform -target=azurerm_storage_container.terraform -auto-approve
 
       - name: Get Storage Account Key
         run: |
@@ -52,7 +51,7 @@ jobs:
 
       - name: Set up remote Backend
         run: |
-          terraform init \
+          terraform init -migrate-state \
             -backend-config="resource_group_name=k8s-terraform" \
             -backend-config="storage_account_name=terraformstateacc" \
             -backend-config="container_name=terraform-state" \

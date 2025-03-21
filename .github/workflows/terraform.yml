@@ -1,4 +1,4 @@
-name: Terraform Deployment
+name: Terraform CI/CD on Azure
 
 on:
   push:
@@ -10,7 +10,7 @@ jobs:
   terraform:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       id-token: write
 
     steps:
@@ -30,38 +30,75 @@ jobs:
           echo "ARM_SUBSCRIPTION_ID=$(jq -r .subscriptionId azure-creds.json)" >> $GITHUB_ENV
           echo "ARM_TENANT_ID=$(jq -r .tenantId azure-creds.json)" >> $GITHUB_ENV
 
+      - name: Generate or load unique storage account name
+        run: |
+          FILE=".azure-backend-name"
+
+          if [ -f "$FILE" ]; then
+            ACCOUNT_NAME=$(cat $FILE)
+            echo "Using existing storage account: $ACCOUNT_NAME"
+          else
+            SUFFIX=$(date +%s | sha256sum | cut -c1-10)
+            ACCOUNT_NAME="tfstate${SUFFIX}"
+            echo "$ACCOUNT_NAME" > $FILE
+            echo "Generated storage account: $ACCOUNT_NAME"
+            git config user.email "actions@github.com"
+            git config user.name "GitHub Actions"
+            git add $FILE
+            git commit -m "Store backend storage account name"
+            git push
+          fi
+
+          echo "TF_STORAGE_ACCOUNT=$ACCOUNT_NAME" >> $GITHUB_ENV
+
+      - name: Install yq (for YAML editing)
+        run: sudo apt-get update && sudo apt-get install -y yq
+
+      - name: Update storage_account_name in variables.yml
+        run: |
+          echo "Updating variables.yml with storage account: $TF_STORAGE_ACCOUNT"
+          yq e '.storage_account_name = strenv(TF_STORAGE_ACCOUNT)' -i variables.yml
+
       - name: Install Terraform
         uses: hashicorp/setup-terraform@v2
         with:
           terraform_version: 1.5.7
 
-      - name: Bootstrap backend resources in Azure (if not exist)
+      - name: Bootstrap backend resources in Azure
         run: |
-          az group show --name k8s-terraform || az group create --name k8s-terraform --location "westeurope"
+          echo "Ensure resource group exists"
+          az group show --name k8s-terraform || \
+          az group create --name k8s-terraform --location "westeurope"
 
-          az storage account show --name terraformstateacc --resource-group k8s-terraform || \
-          az storage account create --name terraformstateacc \
+          echo "Ensure storage account exists"
+          az storage account show --name $TF_STORAGE_ACCOUNT --resource-group k8s-terraform || \
+          az storage account create --name $TF_STORAGE_ACCOUNT \
             --resource-group k8s-terraform \
             --location "westeurope" \
             --sku Standard_LRS \
             --encryption-services blob
 
-          az storage container show --name terraform-state --account-name terraformstateacc || \
+          echo "Ensure container exists"
+          az storage container show --name terraform-state --account-name $TF_STORAGE_ACCOUNT || \
           az storage container create --name terraform-state \
-            --account-name terraformstateacc
+            --account-name $TF_STORAGE_ACCOUNT
 
       - name: Get Storage Account Key
         run: |
-          echo "STORAGE_KEY=$(az storage account keys list --resource-group k8s-terraform --account-name terraformstateacc --query '[0].value' -o tsv)" >> $GITHUB_ENV
+          echo "STORAGE_KEY=$(az storage account keys list --resource-group k8s-terraform --account-name $TF_STORAGE_ACCOUNT --query '[0].value' -o tsv)" >> $GITHUB_ENV
 
-      - name: Terraform Init with remote backend
+      - name: Terraform Init with backend
         run: |
           terraform init \
             -backend-config="resource_group_name=k8s-terraform" \
-            -backend-config="storage_account_name=terraformstateacc" \
+            -backend-config="storage_account_name=${{ env.TF_STORAGE_ACCOUNT }}" \
             -backend-config="container_name=terraform-state" \
             -backend-config="key=terraform.tfstate" \
             -backend-config="access_key=${{ env.STORAGE_KEY }}"
 
-      - name: Terraform Apply (All resources)
+      - name: Terraform Plan
+        run: terraform plan
+
+      - name: Terraform Apply
+        if: github.event_name == 'push'
         run: terraform apply -auto-approve

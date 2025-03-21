@@ -6,12 +6,7 @@ provider "azurerm" {
 
 # Remote Backend config
 terraform {
-  backend "azurerm" {
-    resource_group_name  = "k8s-terraform"
-    storage_account_name = "terraformstateacc"
-    container_name       = "terraform-state"
-    key                  = "terraform.tfstate"
-  }
+  backend "azurerm" {}
 }
 
 # Create Resource Group
@@ -22,7 +17,7 @@ resource "azurerm_resource_group" "rg" {
 
 # Create Storage Account for remote Backend
 resource "azurerm_storage_account" "terraform" {
-  name                     = "terraformstateacc"
+  name                     = var.storage_account_name
   resource_group_name      = azurerm_resource_group.rg.name
   location                 = azurerm_resource_group.rg.location
   account_tier             = "Standard"

@@ -36,7 +36,7 @@ jobs:
           terraform_version: 1.5.7
 
       - name: Terraform Init (no remote backend)
-        run: terraform init
+        run: terraform init -backend=false
       
 
       - name: Terraform Apply (Create only Resource Group)

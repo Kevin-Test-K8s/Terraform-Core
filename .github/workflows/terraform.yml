@@ -83,7 +83,7 @@ jobs:
           echo "Ensure container exists"
           az storage container show --name terraform-state --account-name $TF_STORAGE_ACCOUNT || \
           az storage container create --name terraform-state \
-            --account-name $TF_STORAGE_ACCOUNT
+            --account-name $TF_STORAGE_ACCOUNT --auth-mode login
 
       - name: Get Storage Account Key
         run: |

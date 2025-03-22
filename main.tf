@@ -1,7 +1,7 @@
 provider "azurerm" {
   features {}
 
-  subscription_id = var.subscription_id
+  subscription_id = local.config.subscription_id
 }
 
 # Remote Backend config
@@ -11,13 +11,13 @@ terraform {
 
 # Create Resource Group
 resource "azurerm_resource_group" "rg" {
-  name     = var.resource_group_name
-  location = var.location
+  name     = local.config.resource_group_name
+  location = local.config.location
 }
 
 # Create Storage Account for remote Backend
 resource "azurerm_storage_account" "terraform" {
-  name                     = var.storage_account_name
+  name                     = local.config.storage_account_name
   resource_group_name      = azurerm_resource_group.rg.name
   location                 = azurerm_resource_group.rg.location
   account_tier             = "Standard"
@@ -33,7 +33,7 @@ resource "azurerm_storage_container" "terraform" {
 
 # Create AKS Cluster
 resource "azurerm_kubernetes_cluster" "aks" {
-  name                = var.cluster_name
+  name                = local.config.cluster_name
   location           = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
   dns_prefix         = "k8s-terraform"

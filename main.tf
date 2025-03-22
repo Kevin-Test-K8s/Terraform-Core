@@ -9,7 +9,7 @@ terraform {
   backend "azurerm" {}
 }
 
-# Use Resource Group
+# Use existing Resource Group
 data "azurerm_resource_group" "rg" {
   name = "k8s-terraform"
 }
@@ -21,10 +21,10 @@ data "azurerm_storage_account" "terraform" {
   resource_group_name      = data.azurerm_resource_group.rg.name
 }
 
-# Create Storage Container to store Statefile
+# Use existing Storage Container to store Statefile
 data "azurerm_storage_container" "terraform" {
   name                  = "terraform-state"
-  storage_account_name  = data.azurerm_storage_account.terraform.id
+  storage_account_name  = data.azurerm_storage_account.terraform.name
 }
 
 # Create AKS Cluster

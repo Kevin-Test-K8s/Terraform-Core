@@ -15,20 +15,16 @@ data "azurerm_resource_group" "rg" {
 }
 
 
-# Create Storage Account for remote Backend
-resource "azurerm_storage_account" "terraform" {
+# Use existing Storage Account for remote Backend
+data "azurerm_storage_account" "terraform" {
   name                     = local.config.storage_account_name
   resource_group_name      = data.azurerm_resource_group.rg.name
-  location                 = data.azurerm_resource_group.rg.location
-  account_tier             = "Standard"
-  account_replication_type = "LRS"
 }
 
 # Create Storage Container to store Statefile
-resource "azurerm_storage_container" "terraform" {
+data "azurerm_storage_container" "terraform" {
   name                  = "terraform-state"
-  storage_account_name  = azurerm_storage_account.terraform.id
-  container_access_type = "private"
+  storage_account_name  = data.azurerm_storage_account.terraform.id
 }
 
 # Create AKS Cluster

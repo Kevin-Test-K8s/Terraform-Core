@@ -27,6 +27,13 @@ data "azurerm_storage_container" "terraform" {
   storage_account_name  = data.azurerm_storage_account.terraform.name
 }
 
+resource "azurerm_role_assignment" "aks_user" {
+  scope                = azurerm_kubernetes_cluster.aks.id
+  role_definition_name = "Azure Kubernetes Service Cluster User"
+  principal_id         = local.config.github_actions_object_id
+}
+
+
 # Create AKS Cluster
 resource "azurerm_kubernetes_cluster" "aks" {
   name                = local.config.cluster_name

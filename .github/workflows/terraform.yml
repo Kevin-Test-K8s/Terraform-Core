@@ -88,6 +88,19 @@ jobs:
       - name: Get Storage Account Key
         run: |
           echo "STORAGE_KEY=$(az storage account keys list --resource-group k8s-terraform --account-name $TF_STORAGE_ACCOUNT --query '[0].value' -o tsv)" >> $GITHUB_ENV
+      
+      - name: Assign AKS permissions to GitHub Actions SP
+        run: |
+            CLUSTER_ID=$(az aks show \
+              --resource-group k8s-terraform \
+              --name k8s-terraform-cluster \
+              --query id -o tsv)
+  
+            echo "Assigning AKS Cluster User Role to $ARM_CLIENT_ID"
+            az role assignment create \
+              --assignee $ARM_CLIENT_ID \
+              --role "Azure Kubernetes Service Cluster User Role" \
+              --scope $CLUSTER_ID || echo "Role assignment may already exist"
 
       - name: Terraform Init with backend
         run: |

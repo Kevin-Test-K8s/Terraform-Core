@@ -3,5 +3,5 @@ cluster_name: "k8s-terraform-cluster"
 location: "West Europe"
 subscription_id: "92c6c6b9-38e4-45d2-b008-67d96607f54b"
 storage_account_name: ""
-github_actions_object_id: "54ab336e-e923-4a3b-9862-ed9693e595b4"
+# github_actions_object_id: "54ab336e-e923-4a3b-9862-ed9693e595b4"
 
